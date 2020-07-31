@@ -29,5 +29,5 @@ func (s *snapshot) Persist(sink raft.SnapshotSink) error {
 	return nil
 }
 
-// 根据快照恢复数据
+// 快照清理
 func (f *snapshot) Release() {}

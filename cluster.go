@@ -32,6 +32,7 @@ func newRaftTransport(opts *options) (*raft.NetworkTransport, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	transport, err := raft.NewTCPTransport(address.String(), address, 3, 10*time.Second, os.Stderr)
 	if err != nil {
 		return nil, err
