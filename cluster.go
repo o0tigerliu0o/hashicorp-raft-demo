@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	hclog "github.com/hashicorp/go-hclog"
 	"log"
 	"net"
 	"net/http"
@@ -15,8 +16,9 @@ import (
 	raftboltdb "github.com/hashicorp/raft-boltdb"
 )
 
+// raft节点信息
 type raftNodeInfo struct {
-	raft           *raft.Raft
+	raft           *raft.Raft  //
 	fsm            *FSM
 	leaderNotifyCh chan bool
 }
@@ -28,7 +30,7 @@ type raftNodeInfo struct {
 	在stcache里也采用tcp的方式。
 */
 func newRaftTransport(opts *options) (*raft.NetworkTransport, error) {
-	address, err := net.ResolveTCPAddr("tcp", opts.raftTCPAddress)
+	address, err := net.ResolveTCPAddr("tcp4", opts.raftTCPAddress)
 	if err != nil {
 		return nil, err
 	}
@@ -43,13 +45,18 @@ func newRaftTransport(opts *options) (*raft.NetworkTransport, error) {
 func newRaftNode(opts *options, ctx *stCachedContext) (*raftNodeInfo, error) {
 	raftConfig := raft.DefaultConfig()
 	raftConfig.LocalID = raft.ServerID(opts.raftTCPAddress)
-	raftConfig.Logger = log.New(os.Stderr, "raft: ", log.Ldate|log.Ltime)
+	raftConfig.Logger = hclog.New(&hclog.LoggerOptions{
+		Output:os.Stderr,
+		Name:"raft",
+		Level:log.Ldate|log.Ltime,
+	})
 	raftConfig.SnapshotInterval = 20 * time.Second
 	raftConfig.SnapshotThreshold = 2
 	// 创建一个带缓存的chan赋值给raftConfig.NotifyCh，用于监听当前实例是否发生角色变化
 	leaderNotifyCh := make(chan bool, 1)
 	raftConfig.NotifyCh = leaderNotifyCh
-	// 创建raft监听，用于调用raft服务，监听raft相关的消息
+
+	// 创建raft节点内部的通信通道，用于调用raft服务，监听raft相关的消息
 	transport, err := newRaftTransport(opts)
 	if err != nil {
 		return nil, err
@@ -99,6 +106,7 @@ func newRaftNode(opts *options, ctx *stCachedContext) (*raftNodeInfo, error) {
 				},
 			},
 		}
+		// 初始化raft集群
 		raftNode.BootstrapCluster(configuration)
 	}
 
@@ -110,7 +118,7 @@ func newRaftNode(opts *options, ctx *stCachedContext) (*raftNodeInfo, error) {
 // 并发送请求加入集群,通过http请求方式申请当前节点加入raft集群
 func joinRaftCluster(opts *options) error {
 	url := fmt.Sprintf("http://%s/join?peerAddress=%s", opts.joinAddress, opts.raftTCPAddress)
-
+	// get方式调用leader节点的join方法加入集群
 	resp, err := http.Get(url)
 	if err != nil {
 		return err

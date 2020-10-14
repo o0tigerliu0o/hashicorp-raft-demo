@@ -8,18 +8,22 @@ import (
 	"github.com/hashicorp/raft"
 )
 
+// 状态机信息
 type FSM struct {
+	// 业务数据
 	ctx *stCachedContext
+	// 日志
 	log *log.Logger
 }
 
+// 业务数据结构
 type logEntryData struct {
 	Key   string
 	Value string
 }
 
 // Apply applies a Raft log entry to the key-value store.
-// 作为follower，读取raft传过来的commit log并将数据写入缓存
+// 将数据写入缓存
 func (f *FSM) Apply(logEntry *raft.Log) interface{} {
 	e := logEntryData{}
 	if err := json.Unmarshal(logEntry.Data, &e); err != nil {

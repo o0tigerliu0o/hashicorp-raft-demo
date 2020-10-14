@@ -85,6 +85,7 @@ func (h *httpServer) doSet(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, "write method not allowed\n")
 		return
 	}
+	// 获取request请求中的值
 	vars := r.URL.Query()
 	// 从http请求中获取key、value对应的输入
 	key := vars.Get("key")
@@ -97,6 +98,7 @@ func (h *httpServer) doSet(w http.ResponseWriter, r *http.Request) {
 
 	// 构造event
 	event := logEntryData{Key: key, Value: value}
+	// 将业务数据进行序列化
 	eventBytes, err := json.Marshal(event)
 	if err != nil {
 		h.log.Printf("json.Marshal failed, err:%v", err)
